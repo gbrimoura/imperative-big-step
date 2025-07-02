@@ -279,6 +279,58 @@ cbigStep (DAtrrib (Var e1) (Var e2) e3 e4,s) = cbigStep (Seq (Atrib (Var e1) e3)
 ---
 ---------------------------------
 
+---------------------------------
+---
+--- COMEÇO DOS TESTES CONDICIONAIS
+---
+---------------------------------
+
+exCond :: Memoria
+exCond = [("x", 5), ("y", 1), ("z", 0)]
+
+-- SKIP (Quando sozinho mostra a memória)
+testeC1a = cbigStep (Skip, exComand) 	-- ESPERADO: (Skip, [("x",5),("y",1),("z",0)])
+
+-- ATRIBUIÇÃO
+testeC2a = cbigStep (Atrib (Var "x") (Num 10), exCond) 	-- ESPERADO: (Skip, [("x",10),("y",1),("z",0))])
+testeC2b = cbigStep (Atrib (Var "y") (Soma (Var "x") (Num 2)), exComand)		-- ESPERADO: (Skip, [("x",5),("y",7),("z",0)])
+
+-- SEQUÊNCIA
+testeC3a = cbigStep (Seq (Atrib (Var "x") (Num 10)) (Atrib (Var "y") (Soma (Var "x") (Num 5))), exComand)
+-- x := 10, (Memória: [("x",10),("y",1),("z",0)]);	y := x + 5 = 10 + 5 = 15, (Memória: [("x",10),("y",15),("z",0)]);
+-- ESPERADO: (Skip, [("x",10),("y",15),("z",0)])
+
+testeC3b = cbigStep (Seq (Atrib (Var "z") (Var "x")) (Seq (Atrib (Var "x") (Var "y")) (Atrib (Var "y") (Var "z"))), exComand)
+-- z := x(5), [("x",5),("y",1),("z",5)];	x := y(1), [("x",1),("y",1),("z",5)];		y := z(5), [("x",1),("y",5),("z",5)]
+-- ESPERADO: (Skip, [("x",1),("y",5),("z",5)])
+
+-- SE/ENTÃO
+testeC4a = cbigStep (If (Leq (Num 5) (Num 10))(Atrib (Var "x") (Num 100))(Atrib (Var "x") (Num 0)), exCond)
+-- 5 <= 10 é TRUE, então x := 100.	ESPERADO: (Skip, [("x",100),("y",1),("z",0)])
+
+testeC4b = cbigStep (If (Leq (Num 10) (Num 5))(Atrib (Var "x") (Num 100))(Atrib (Var "x") (Num 0)), exCond)
+-- 10 <= 5 é FALSE, então x := 0.		ESPERADO: (Skip, [("x",0),("y",1),("z",0)])
+
+testeC4c = cbigStep (If (Igual (Var "x") (Num 5))(Atrib (Var "z") (Num 10))(Atrib (Var "z") (Num 5)), exCond)
+-- x (5) == 5 é TRUE, então z := 10.	ESPERADO: (Skip, [("x",5),("y",1),("z",10)])
+
+-- ENQUANTO
+testC5a = cbigStep (While (Not (Igual (Var "x") (Num 0)) (Seq (Atrib (Var "y") (Mult (Var "y") (Var "x")))(Atrib (Var "x") (Sub (Var "x") (Num 1))))), exCond)
+-- Enquanto x for diferente de 0 faz y := y * x e x := x-1
+-- (x=5,y=1) -> x!=0? T -> y=1*5=5, x=4;		(x=4,y=5) -> x!=0? T -> y=5*4=20, x=3;		(x=3,y=20) -> x!=0? T -> y=20*3=60, x=2
+-- (x=2,y=60) -> x!=0? T -> y=60*2=120, x=1;	(x=1,y=120) -> x!=0? T -> y=120*1=120, x=0;		(x=0,y=120) -> x!=0? F -> FIM
+-- ESPERADO: (Skip, [("x",0),("y",120),("z",0)])
+
+-- TRÊS VEZES
+testC6a = cbigStep (ThreeTimes (Atrib (Var "y") (Soma (Var "y") (Num 1))), exCond)
+-- Faz y := y+1 três vezes.
+
+---------------------------------
+---
+--- FIM DOS TESTES CONDICIONAIS
+---
+---------------------------------
+
 --------------------------------------
 ---
 --- Exemplos de programas para teste
