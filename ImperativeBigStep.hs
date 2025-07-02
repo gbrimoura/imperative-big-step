@@ -118,7 +118,7 @@ cbigStep (Skip,s) = (Skip,s)
 cbigStep (If b c1 c2,s)
    | bbigStep(b,s) == True = cbigStep (c1,s)
    | otherwise = cbigStep (c2,s)
-cbigStep (Seq c1 c2,s) = cbigStep (c2,(\ (c,s) -> s) (cbigStep (c1,s)))
+cbigStep (Seq c1 c2,s) = cbigStep (c2,(\ (c,s) -> s) (cbigStep (c1,s))) -- Avalia (c1,s) e retorna a memória do resultado
 
 -- IMPORTANTE
 -- A definição de Atrib aqui pede uma memória, mas os exemplos mais adiante são sem essa memória?
