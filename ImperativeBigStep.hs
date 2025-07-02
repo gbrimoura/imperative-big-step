@@ -1,4 +1,3 @@
-
 -- Definição das árvore sintática para representação dos programas:
 
 data E = Num Int
@@ -49,7 +48,6 @@ type Memoria = [(String,Int)]
 exSigma :: Memoria
 exSigma = [ ("x", 10), ("temp",0), ("y",0)]
 
-
 --- A função procuraVar recebe uma memória, o nome de uma variável e retorna o conteúdo
 --- dessa variável na memória. Exemplo:
 ---
@@ -87,6 +85,12 @@ mudaVar ((s,i):xs) v n
 ---
 ---------------------------------
 
+---------------------------------
+---
+--- COMEÇO DAS FUNÇÕES ARITIMÉTICAS
+---
+---------------------------------
+
 ebigStep :: (E,Memoria) -> Int
 ebigStep (Var x,s) = procuraVar s x
 ebigStep (Num n,s) = n
@@ -95,6 +99,11 @@ ebigStep (Sub e1 e2,s)  = ebigStep (e1,s) - ebigStep (e2,s)
 ebigStep (Mult e1 e2,s)  = ebigStep (e1,s) * ebigStep (e2,s)
 ebigStep(Div e1 e2,s) = ebigStep (e1,s) `div` ebigStep (e2,s)
 
+---------------------------------
+---
+--- FIM DAS FUNÇÕES ARITIMÉTICAS
+---
+---------------------------------
 ---------------------------------
 ---
 --- COMEÇO DOS TESTES ARITIMÉTICOS
@@ -141,31 +150,42 @@ testeA6c = ebigStep (Mult (Sub (Var "x") (Var "y")) (Soma (Var "y") (Num 1)), ex
 ---
 ---------------------------------
 
+---------------------------------
+---
+--- COMEÇO DAS FUNÇÕES BOOLEANAS
+---
+---------------------------------
+
 bbigStep :: (B,Memoria) -> Bool
 bbigStep (TRUE,s)  = True
 bbigStep (FALSE,s) = False
 bbigStep (Not b,s) 
-   | bbigStep (b,s) == True     = False
-   | otherwise = True
+ | bbigStep (b,s) == True = False
+ | otherwise = True
 
-bbigStep (And b1 b2,s )  = bbigStep (b1,s) && bbigStep (b2,s) -- Processo Direto
--- bbigStep (And b1 b2,s) -- Processo Completo
---  | bbigStep (b1,s) == True    = bbigStep (b2,s)
---  | otherwise                  = False
+--bbigStep (And b1 b2,s )  = bbigStep (b1,s) && bbigStep (b2,s) -- Processo Direto
+bbigStep (And b1 b2,s) -- Processo Completo
+ | bbigStep (b1,s) == True = bbigStep (b2,s)
+ | otherwise = False
 
-bbigStep (Or b1 b2,s )  = bbigStep (b1,s) || bbigStep (b2,s) -- Processo Direto
--- bbigStep (Or b1 b2,s ) -- Processo Completo
---  | bbigStep (b1,s) == True   = True
---  | otherwise	= bbigStep (b2,s)
+--bbigStep (Or b1 b2,s )  = bbigStep (b1,s) || bbigStep (b2,s) -- Processo Direto
+bbigStep (Or b1 b2,s ) -- Processo Completo
+ | bbigStep (b1,s) == True = True
+ | otherwise = bbigStep (b2,s)
 
-bbigStep (Leq e1 e2,s) = ebigStep (e1,s) <= ebigStep (e2,s) -- Processo Direto
---bbigStep (Leq e1 e2,s) -- Processo Completo
---    | ebigStep (e1,s) <= ebigStep (e2,s)
---    | otherwise	= False
+-- bbigStep (Leq e1 e2,s) = ebigStep (e1,s) <= ebigStep (e2,s) -- Processo Direto
+bbigStep (Leq e1 e2,s) -- Processo Completo
+ | ebigStep (e1,s) <= ebigStep (e2,s) = True
+ | otherwise = False
 
-bbigStep (Igual e1 e2,s) = ebigStep (e1,s) == ebigStep (e2,s) -- Processo Direto
--- bbigStep (Igual e1 e2,s) -- Processo Completo
---    | bbigStep (And (Leq e1 e2) (Leq e2 e1), s)
+-- bbigStep (Igual e1 e2,s) = ebigStep (e1,s) == ebigStep (e2,s) -- Processo Direto
+bbigStep (Igual e1 e2,s) = bbigStep (And (Leq e1 e2) (Leq e2 e1), s) -- Processo Completo 
+
+---------------------------------
+---
+--- FIM DAS FUNÇÕES BOOLEANAS
+---
+---------------------------------
 
 ---------------------------------
 ---
@@ -207,25 +227,53 @@ testeB4e = bbigStep (Igual (Soma (Var "x") (Num 1)) (Var "z"), exBool) -- ESPERA
 ---
 ---------------------------------
 
+---------------------------------
+---
+--- COMEÇO DAS FUNÇÕES CONDICIONAIS
+---
+---------------------------------
+
 cbigStep :: (C,Memoria) -> (C,Memoria)
 cbigStep (Skip,s) = (Skip,s)
 cbigStep (If b c1 c2,s)
-   | bbigStep(b,s) == True = cbigStep (c1,s)
-   | otherwise = cbigStep (c2,s)
-cbigStep (Seq c1 c2,s) = cbigStep (c2,(\ (c,s) -> s) (cbigStep (c1,s))) -- Avalia (c1,s) e retorna a memória do resultado
-
--- IMPORTANTE
--- A definição de Atrib aqui pede uma memória, mas os exemplos mais adiante são sem essa memória?
+ | bbigStep(b,s) == True = cbigStep (c1,s)
+ | otherwise = cbigStep (c2,s)
+cbigStep (Seq c1 c2,s) = cbigStep (c2, snd (cbigStep (c1,s)))
+-- Snd é uma função que retorna o segundo valor de uma tupla, neste caso como definido (C, Memoria), ele retorna a memória após executar c1
 cbigStep (Atrib (Var x) e,s) = cbigStep (Skip,(mudaVar s x (ebigStep (e,s))))
 
+--    While B C
+cbigStep (While b c, s)
+ | bbigStep (b,s) == True = cbigStep (Seq c (While b c, s), s)
+ | otherwise = (Skip, s)
 
---     While B C
 --    ThreeTimes C   ---- Executa o comando C 3 vezes
+cbigStep (ThreeTimes c, s) = cbigStep (Seq c (Seq c c), s)
+
 --     DoWhile C B --- DoWhile C B: executa C enquanto B é verdadeiro
---     Loop C E      ---- Loop E C: executa E vezes o comando C 
---     Assert B C --- Assert B C: caso B seja verdadeiro, executa o comando C
---     ExecWhile E E C -- ExecWhile E1 E2 C: Enquanto a expressão E1 for menor que a expressão E2, executa C 
+cbigStep (DoWhile c b, s) = cbigStep (Seq c (While b c), s)
+
+--     Loop C E      ---- Loop E C: executa E vezes o comando C
+-- cbigStep (Loop e c, s) = cbigStep (If (Igual e (Num 0), s) (Skip,s) (Seq C (Loop (Sub (e (Num 1), s) c, s), s), s)
+cbigStep (Loop e c, s)
+ | ebigStep (e,s) <= 0 = (Skip, s)
+ | otherwise = cbigStep (Seq c (Loop c (Sub e (Num 1))), s)
+
+--     Assert B C --- Assert B C: caso B seja verdadeiro, executa o comando C (Não é só um If sem else??)
+cbigStep (Assert b c,s)
+ | bbigStep(b,s) == True = cbigStep (c, s)
+ | otherwise = (Skip,s)
+
+--     ExecWhile E E C -- ExecWhile E1 E2 C: Enquanto a expressão E1 for menor que a expressão E2, executa C
+cbigStep (ExecWhile e1 e2 c, s) = cbigStep (While (Leq e1 e2, s) (Seq c (Sub e2 (Num 1), s), s)
+
 --     DAtrrib E E E E -- Dupla atribuição: recebe duas variáveis "e1" e "e2" e duas expressões "e3" e "e4". Faz e1:=e3 e e2:=e4.
+
+---------------------------------
+---
+--- FIM DAS FUNÇÕES CONDICIONAIS
+---
+---------------------------------
 
 --------------------------------------
 ---
@@ -257,6 +305,7 @@ progExp1 = Soma (Num 3) (Soma (Var "x") (Var "y"))
 -- 6
 
 --- Para rodar os próximos programas é necessário primeiro implementar as regras da semântica
+---
 
 ---
 -- Exemplos de Programas Imperativos:
