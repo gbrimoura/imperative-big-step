@@ -244,7 +244,7 @@ cbigStep (Atrib (Var x) e,s) = cbigStep (Skip,(mudaVar s x (ebigStep (e,s))))
 
 --    While B C
 cbigStep (While b c, s)
- | bbigStep (b,s) == True = cbigStep (Seq c (While b c, s), s)
+ | bbigStep (b,s) == True = cbigStep (Seq c (While b c), s)
  | otherwise = (Skip, s)
 
 --    ThreeTimes C   ---- Executa o comando C 3 vezes
@@ -255,7 +255,7 @@ cbigStep (DoWhile c b, s) = cbigStep (Seq c (While b c), s)
 
 --     Loop C E      ---- Loop E C: executa E vezes o comando C
 -- cbigStep (Loop e c, s) = cbigStep (If (Igual e (Num 0), s) (Skip,s) (Seq C (Loop (Sub (e (Num 1), s) c, s), s), s)
-cbigStep (Loop e c, s)
+cbigStep (Loop c e, s)
  | ebigStep (e,s) <= 0 = (Skip, s)
  | otherwise = cbigStep (Seq c (Loop c (Sub e (Num 1))), s)
 
@@ -265,9 +265,13 @@ cbigStep (Assert b c,s)
  | otherwise = (Skip,s)
 
 --     ExecWhile E E C -- ExecWhile E1 E2 C: Enquanto a expressão E1 for menor que a expressão E2, executa C
-cbigStep (ExecWhile e1 e2 c, s) = cbigStep (While (Leq e1 e2, s) (Seq c (Sub e2 (Num 1), s), s)
+cbigStep (ExecWhile e1 e2 c, s)
+  | ebigStep(e1,s) < ebigStep(e2,s) = cbigStep (ExecWhile e1 e2 c, snd (cbigStep (c,s)))
+  | otherwise = (Skip,s)
 
---     DAtrrib E E E E -- Dupla atribuição: recebe duas variáveis "e1" e "e2" e duas expressões "e3" e "e4". Faz e1:=e3 e e2:=e4.
+-- DAtrrib E E E E -- Dupla atribuição: recebe duas variáveis "e1" e "e2" e duas expressões "e3" e "e4". Faz e1:=e3 e e2:=e4.
+cbigStep (DAtrrib (Var e1) (Var e2) e3 e4,s) = cbigStep (Seq (Atrib (Var e1) e3)
+                  (Atrib (Var e2) e4),s)
 
 ---------------------------------
 ---
