@@ -87,9 +87,6 @@ mudaVar ((s,i):xs) v n
 ---
 ---------------------------------
 
-
-
-
 ebigStep :: (E,Memoria) -> Int
 ebigStep (Var x,s) = procuraVar s x
 ebigStep (Num n,s) = n
@@ -98,20 +95,117 @@ ebigStep (Sub e1 e2,s)  = ebigStep (e1,s) - ebigStep (e2,s)
 ebigStep (Mult e1 e2,s)  = ebigStep (e1,s) * ebigStep (e2,s)
 ebigStep(Div e1 e2,s) = ebigStep (e1,s) `div` ebigStep (e2,s)
 
+---------------------------------
+---
+--- COMEÇO DOS TESTES ARITIMÉTICOS
+---
+---------------------------------
+
+exArit :: Memoria
+exArit = [ ("x", 10), ("y",5), ("z",0)]
+
+-- NUMEROS E VARIÁVEIS
+testeA1a = ebigStep (Num 15, exArit)                         -- ESPERADO: 15
+testeA1b = ebigStep (Var "x", exArit)                        -- ESPERADO: 10
+testeA1c = ebigStep (Var "y", exArit)                        -- ESPERADO: 5
+
+-- SOMAS
+testeA2a = ebigStep (Soma (Num 5) (Num 3), exArit)           -- 5 + 3 = 8; ESPERADO: 8
+testeA2b = ebigStep (Soma (Var "x") (Num 2), exArit)         -- 10 + 2 = 12; ESPERADO: 12
+testeA2c = ebigStep (Soma (Var "x") (Var "y"), exArit)       -- 10 + 5 = 15; ESPERADO: 15
+
+-- SUBTRAÇÕES
+testeA3a = ebigStep (Sub (Num 10) (Num 4), exArit)           -- 10 - 4 = 6; ESPERADO: 6
+testeA3b = ebigStep (Sub (Var "x") (Num 5), exArit)          -- 10 - 5 = 5; ESPERADO: 5
+testeA3c = ebigStep (Sub (Var "y") (Var "x"), exArit)       -- 5 - 10 = -5; ESPERADO: -5
+
+-- MULTIPLICAÇÕES
+testeA4a = ebigStep (Mult (Num 3) (Num 6), exArit)           -- 3 * 6 = 18; ESPERADO: 18
+testeA4b = ebigStep (Mult (Var "y") (Num 2), exArit)         -- 5 * 2 = 10; ESPERADO: 10
+testeA4c = ebigStep (Mult (Var "x") (Var "y"), exArit)       -- 10 * 5 = 50; ESPERADO: 50
+
+-- DIVISÕES
+testeA5a = ebigStep (Div (Num 10) (Num 2), exArit)           -- 10 / 2 = 5; ESPERADO: 5
+testeA5b = ebigStep (Div (Var "x") (Num 3), exArit)          -- 10 / 3 = 3; ESPERADO: 3 (Divisão sem decimal)
+testeA5c = ebigStep (Div (Var "x") (Var "y"), exArit)       -- 10 / 5 = 2; ESPERADO: 2
+testeA5d = ebigStep (Div (Num 10) (Num 0), exArit)        -- ESPERADO: "Exception: divide by zero" 
+
+-- EXPRESSÕES COMPLEXAS (MULTIPLAS CONTAS)
+testeA6a = ebigStep (Soma (Mult (Num 2) (Num 3)) (Sub (Num 10) (Num 5)), exArit)  -- (2 * 3) + (10 - 5) = 6 + 5 = 11; ESPERADO: 11
+testeA6b = ebigStep (Div (Soma (Var "x") (Var "y")) (Num 3), exArit)                              -- (10 + 5) / 3 = 15 / 3 = 5; ESPERADO: 5
+testeA6c = ebigStep (Mult (Sub (Var "x") (Var "y")) (Soma (Var "y") (Num 1)), exArit)   -- (10 - 5) * (5 + 1) = 5 * 6 = 30;  ESPERADO: 30
+
+---------------------------------
+---
+--- FIM DOS TESTES ARITIMÉTICOS
+---
+---------------------------------
 
 bbigStep :: (B,Memoria) -> Bool
 bbigStep (TRUE,s)  = True
 bbigStep (FALSE,s) = False
 bbigStep (Not b,s) 
    | bbigStep (b,s) == True     = False
-   | otherwise                  = True 
-bbigStep (And b1 b2,s )  = bbigStep (b1,s) && bbigStep (b2,s) -- Dá pra fazer usando só com esses operadores, a questão é que a semântica operacional descreve todo um processo que talvez deveria estar aqui, como segue o exemplo abaixo
--- bbigStep (And b1 b2,s)
+   | otherwise = True
+
+bbigStep (And b1 b2,s )  = bbigStep (b1,s) && bbigStep (b2,s) -- Processo Direto
+-- bbigStep (And b1 b2,s) -- Processo Completo
 --  | bbigStep (b1,s) == True    = bbigStep (b2,s)
 --  | otherwise                  = False
-bbigStep (Or b1 b2,s )  = bbigStep (b1,s) && bbigStep (b2,s)
-bbigStep (Leq e1 e2,s) = ebigStep (e1,s) <= ebigStep (e2,s)
-bbigStep (Igual e1 e2,s) = ebigStep (e1,s) == ebigStep (e2,s)
+
+bbigStep (Or b1 b2,s )  = bbigStep (b1,s) || bbigStep (b2,s) -- Processo Direto
+-- bbigStep (Or b1 b2,s ) -- Processo Completo
+--  | bbigStep (b1,s) == True   = True
+--  | otherwise	= bbigStep (b2,s)
+
+bbigStep (Leq e1 e2,s) = ebigStep (e1,s) <= ebigStep (e2,s) -- Processo Direto
+--bbigStep (Leq e1 e2,s) -- Processo Completo
+--    | ebigStep (e1,s) <= ebigStep (e2,s)
+--    | otherwise	= False
+
+bbigStep (Igual e1 e2,s) = ebigStep (e1,s) == ebigStep (e2,s) -- Processo Direto
+-- bbigStep (Igual e1 e2,s) -- Processo Completo
+--    | bbigStep (And (Leq e1 e2) (Leq e2 e1), s)
+
+---------------------------------
+---
+--- COMEÇO DOS TESTES BOOLEANOS
+---
+---------------------------------
+
+exBool :: Memoria
+exBool = [ ("x", 10), ("y",0), ("z",0)]
+
+-- OPERADOR AND
+testeB1a = bbigStep (And TRUE FALSE, exBool)                 -- ESPERADO: False
+testeB1b = bbigStep (And TRUE TRUE, exBool)                  -- ESPERADO: True
+testeB1c = bbigStep (And (Leq (Num 5) (Num 10)) FALSE, exBool) -- ESPERADO: False
+testeB1d = bbigStep (And (Leq (Var "x") (Var "y")) (Igual (Var "x") (Var "z")), exBool) -- ESPERADO: False
+
+-- OPERADOR OR
+testeB2a = bbigStep (Or TRUE FALSE, exBool)                  -- ESPERADO: True
+testeB2b = bbigStep (Or FALSE FALSE, exBool)                 -- ESPERADO: False
+testeB2c = bbigStep (Or (Leq (Num 10) (Num 5)) TRUE, exBool)  -- ESPERADO: True
+testeB2d = bbigStep (Or (Leq (Var "x") (Var "y")) (Igual (Var "x") (Var "z")), exBool) -- ESPERADO: True
+
+-- OPERADOR LEQ
+testeB3a = bbigStep (Leq (Num 5) (Num 10), exBool)             -- ESPERADO: True
+testeB3b = bbigStep (Leq (Num 10) (Num 5), exBool)             -- ESPERADO:False
+testeB3c = bbigStep (Leq (Var "y") (Var "x"), exBool)          -- ESPERADO: True
+testeB3d = bbigStep (Leq (Soma (Var "x") (Num 1)) (Mult (Var "z") (Num 2)), exBool) -- ESPERADO: False
+
+-- OPERADOR IGUAL
+testeB4a = bbigStep (Igual (Num 5) (Num 5), exBool)            -- ESPERADO:True
+testeB4b = bbigStep (Igual (Num 5) (Num 10), exBool)           -- ESPERADO: False
+testeB4c = bbigStep (Igual (Var "y") (Var "z"), exBool)        -- ESPERADO: True
+testeB4d = bbigStep (Igual (Soma (Var "x") (Num 0)) (Var "x"), exBool) -- ESPERADO: True
+testeB4e = bbigStep (Igual (Soma (Var "x") (Num 1)) (Var "z"), exBool) -- ESPERADO: False
+
+---------------------------------
+---
+--- FIM DOS TESTES BOOLEANOS
+---
+---------------------------------
 
 cbigStep :: (C,Memoria) -> (C,Memoria)
 cbigStep (Skip,s) = (Skip,s)
@@ -148,7 +242,6 @@ cbigStep (Atrib (Var x) e,s) = cbigStep (Skip,(mudaVar s x (ebigStep (e,s))))
 exSigma2 :: Memoria
 exSigma2 = [("x",3), ("y",0), ("z",0)]
 
-
 ---
 --- O progExp1 é um programa que usa apenas a semântica das expressões aritméticas. Esse
 --- programa já é possível rodar com a implementação inicial  fornecida:
@@ -164,19 +257,6 @@ progExp1 = Soma (Num 3) (Soma (Var "x") (Var "y"))
 -- 6
 
 --- Para rodar os próximos programas é necessário primeiro implementar as regras da semântica
----
-
-
----
---- Exemplos de expressões booleanas:
-
-
-teste1 :: B
-teste1 = (Leq (Soma (Num 3) (Num 3))  (Mult (Num 2) (Num 3)))
-
-teste2 :: B
-teste2 = (Leq (Soma (Var "x") (Num 3))  (Mult (Num 2) (Num 3)))
-
 
 ---
 -- Exemplos de Programas Imperativos:
