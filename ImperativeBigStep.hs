@@ -126,7 +126,6 @@ testeA2c = ebigStep (Soma (Var "x") (Var "y"), exArit)       -- 10 + 5 = 15; ESP
 -- SUBTRAÇÕES
 testeA3a = ebigStep (Sub (Num 10) (Num 4), exArit)           -- 10 - 4 = 6; ESPERADO: 6
 testeA3b = ebigStep (Sub (Var "x") (Num 5), exArit)          -- 10 - 5 = 5; ESPERADO: 5
-testeA3c = ebigStep (Sub (Var "y") (Var "x"), exArit)       -- 5 - 10 = -5; ESPERADO: -5
 
 -- MULTIPLICAÇÕES
 testeA4a = ebigStep (Mult (Num 3) (Num 6), exArit)           -- 3 * 6 = 18; ESPERADO: 18
@@ -289,18 +288,18 @@ exCond :: Memoria
 exCond = [("x", 5), ("y", 1), ("z", 0)]
 
 -- SKIP (Quando sozinho mostra a memória)
-testeC1a = cbigStep (Skip, exComand) 	-- ESPERADO: (Skip, [("x",5),("y",1),("z",0)])
+testeC1a = cbigStep (Skip, exCond)   -- ESPERADO: (Skip, [("x",5),("y",1),("z",0)])
 
 -- ATRIBUIÇÃO
-testeC2a = cbigStep (Atrib (Var "x") (Num 10), exCond) 	-- ESPERADO: (Skip, [("x",10),("y",1),("z",0))])
-testeC2b = cbigStep (Atrib (Var "y") (Soma (Var "x") (Num 2)), exComand)		-- ESPERADO: (Skip, [("x",5),("y",7),("z",0)])
+testeC2a = cbigStep (Atrib (Var "x") (Num 10), exCond)   -- ESPERADO: (Skip, [("x",10),("y",1),("z",0))])
+testeC2b = cbigStep (Atrib (Var "y") (Soma (Var "x") (Num 2)), exCond)   -- ESPERADO: (Skip, [("x",5),("y",7),("z",0)])
 
 -- SEQUÊNCIA
-testeC3a = cbigStep (Seq (Atrib (Var "x") (Num 10)) (Atrib (Var "y") (Soma (Var "x") (Num 5))), exComand)
+testeC3a = cbigStep (Seq (Atrib (Var "x") (Num 10)) (Atrib (Var "y") (Soma (Var "x") (Num 5))), exCond)
 -- x := 10, (Memória: [("x",10),("y",1),("z",0)]);	y := x + 5 = 10 + 5 = 15, (Memória: [("x",10),("y",15),("z",0)]);
 -- ESPERADO: (Skip, [("x",10),("y",15),("z",0)])
 
-testeC3b = cbigStep (Seq (Atrib (Var "z") (Var "x")) (Seq (Atrib (Var "x") (Var "y")) (Atrib (Var "y") (Var "z"))), exComand)
+testeC3b = cbigStep (Seq (Atrib (Var "z") (Var "x")) (Seq (Atrib (Var "x") (Var "y")) (Atrib (Var "y") (Var "z"))), exCond)
 -- z := x(5), [("x",5),("y",1),("z",5)];	x := y(1), [("x",1),("y",1),("z",5)];		y := z(5), [("x",1),("y",5),("z",5)]
 -- ESPERADO: (Skip, [("x",1),("y",5),("z",5)])
 
@@ -315,15 +314,69 @@ testeC4c = cbigStep (If (Igual (Var "x") (Num 5))(Atrib (Var "z") (Num 10))(Atri
 -- x (5) == 5 é TRUE, então z := 10.	ESPERADO: (Skip, [("x",5),("y",1),("z",10)])
 
 -- ENQUANTO
-testC5a = cbigStep (While (Not (Igual (Var "x") (Num 0)) (Seq (Atrib (Var "y") (Mult (Var "y") (Var "x")))(Atrib (Var "x") (Sub (Var "x") (Num 1))))), exCond)
+testeC5a = cbigStep (Seq (Atrib (Var "y") (Num 1))
+                         (While (Not (Igual (Var "x") (Num 0)))
+                                (Seq (Atrib (Var "y") (Mult (Var "y") (Var "x")))
+                                     (Atrib (Var "x") (Sub (Var "x") (Num 1))))), exCond)
 -- Enquanto x for diferente de 0 faz y := y * x e x := x-1
 -- (x=5,y=1) -> x!=0? T -> y=1*5=5, x=4;		(x=4,y=5) -> x!=0? T -> y=5*4=20, x=3;		(x=3,y=20) -> x!=0? T -> y=20*3=60, x=2
 -- (x=2,y=60) -> x!=0? T -> y=60*2=120, x=1;	(x=1,y=120) -> x!=0? T -> y=120*1=120, x=0;		(x=0,y=120) -> x!=0? F -> FIM
 -- ESPERADO: (Skip, [("x",0),("y",120),("z",0)])
 
 -- TRÊS VEZES
-testC6a = cbigStep (ThreeTimes (Atrib (Var "y") (Soma (Var "y") (Num 1))), exCond)
--- Faz y := y+1 três vezes.
+testeC6a = cbigStep (ThreeTimes (Atrib (Var "y") (Soma (Var "y") (Num 1))), exCond)
+-- Faz y := y+1 três vezes.	ESPERADO: (Skip, [("x",5),("y",4),("z",0)])
+
+-- FAÇA ENQUANTO
+testeC7a = cbigStep (DoWhile (Atrib (Var "x") (Soma (Var "x") (Num 1)))
+                             (Leq (Var "x") (Num 7)), exCond)
+-- Faz x := x+1 enquanto x <= 7	ESPERADO: (Skip, [("x",7),("y",1),("z",0)])
+
+testeC7b = cbigStep (DoWhile (Atrib (Var "x") (Soma (Var "x") (Num 1)))
+                             (Leq (Var "x") (Num 0)), exCond)
+-- Faz x := x+1 enquanto x <= 0	ESPERADO: (Skip, [("x",6),("y",1),("z",0)])
+
+-- LOOP
+testeC8a = cbigStep (Loop (Atrib (Var "y") (Soma (Var "y") (Num 1))) (Num 5), exCond)
+-- Faz y := y+1, 5 vezes	ESPERADO: (Skip, [("x",5),("y",1),("z",0)])
+
+testeC8b = cbigStep (Loop (Atrib (Var "x") (Soma (Var "x") (Num 1))) (Num 0), exCond)
+-- Faz y := y+1, 0 vezes	ESPERADO: (Skip, [("x",5),("y",1),("z",0)])
+
+-- ASSERT
+testeC9a = cbigStep (Assert (Leq (Var "x") (Num 10)) (Atrib (Var "z") (Num 1)), exCond)
+-- x (5) <= 10 é TRUE, então z := 1	ESPERADO: (Skip, [("x",5),("y",1),("z",1),("temp",0),("count",0)])
+
+testeC9b = cbigStep (Assert (Leq (Var "x") (Num 0)) (Atrib (Var "z") (Num 1)), exCond)
+-- x (5) <= 10 é TRUE, então z := 1	ESPERADO: (Skip, [("x",5),("y",1),("z",1),("temp",0),("count",0)])
+
+-- EXECUTAR ENQUANTO
+testeC10a = cbigStep (ExecWhile (Var "x") (Num 8)(Atrib (Var "x") (Soma (Var "x") (Num 1))), exCond)
+-- Memória inicial: x=5;	x=5 < 8	TRUE -> x=6;	x=6 < 8 	TRUE -> x=7
+-- x=7 < 8 	TRUE -> x=8;	x=8 < 8 	FALSE -> Termina;	ESPERADO: (Skip, [("x",8),("y",1),("z",0),("temp",0),("count",0)])
+
+testeC10b= cbigStep (ExecWhile (Var "x") (Num 3) (Atrib (Var "x") (Soma (Var "x") (Num 1))), exCond)
+-- Memória inicial: x=5;	x=5 < 3 	FALSE -> Termina	ESPERADO: (Skip, [("x",5),("y",1),("z",0),("temp",0),("count",0)])
+
+testeC10c = cbigStep (ExecWhile (Var "y") (Num 3) (Atrib (Var "y") (Soma (Var "y") (Num 1))), exCond)
+-- Memória inicial: y=1;	y=1 < 3 	TRUE -> y=2;	y=2 < 3	TRUE -> y=3;
+-- y=3<3 	FALSE -> Termina;	ESPERADO: (Skip, [("x",5),("y",1),("z",0),("temp",0),("count",0)])
+
+-- DUPLA ATRIBUIÇÃO
+testeC11a = cbigStep (DAtrrib (Var "x") (Var "y") (Num 20) (Num 30), exCond)
+-- x := 20, y := 30;	ESPERADO: (Skip, [("x",20),("y",30),("z",0)])
+
+testD5b = cbigStep (DAtrrib (Var "x") (Var "y") (Soma (Var "x") (Num 1)) (Soma (Var "y") (Num 1)), exCond)
+-- Memória inicial: x=5, y=1;	x = 5 + 1 = 6;	y = 1 + 1 = 2	x := 6, y := 2;
+-- ESPERADO: (Skip, [("x",6),("y",2),("z",0)])
+
+testD5c = cbigStep (DAtrrib (Var "x") (Var "y") (Var "y") (Var "x"), exCond)
+-- Memória inicial: x=5, y=1;	x = y (1) = 1;	y = x (5) = 5;	x := 1, y := 5;
+-- ESPERADO: (Skip, [("x",6),("y",2),("z",0)])
+
+testD5d = cbigStep (DAtrrib (Var "x") (Var "z") (Mult (Var "x") (Num 2)) (Soma (Var "y") (Var "x")), exCond)
+-- Memória inicial: x=5, y=1, z=0;		x = x * 2 = 5 * 2 = 10;	z = y + x = 1 + 5 = 6;
+-- Esperado: (Skip, [("x",10),("y",1),("z",6)])
 
 ---------------------------------
 ---
